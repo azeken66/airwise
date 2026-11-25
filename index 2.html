@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AirWise – Air Quality Advisor</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--text:#1b2733;--muted:#6b7a89;--accent:#2a7de1;--border:#e3e9f0}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{background:#12263a;color:#fff;padding:20px 16px 28px}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header .wrap{padding:0}
+h1{margin:0 0 4px;font-size:26px}
+header p{margin:0;color:#b9c8d8;font-size:14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#lang{background:transparent;color:#fff;border:1px solid #4a6580;border-radius:8px;padding:6px 10px;cursor:pointer}
+.searchbox{position:relative;margin-top:16px;display:flex;gap:8px}
+#q{flex:1;padding:12px 14px;border-radius:10px;border:0;font-size:16px}
+button{cursor:pointer;font-size:15px}
+#loc{padding:0 14px;border-radius:10px;border:0;background:var(--accent);color:#fff}
+#sugg{position:absolute;top:50px;left:0;right:60px;background:#fff;color:var(--text);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:5;overflow:hidden}
+#sugg div{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)}
+#sugg div:hover{background:#eef4fc}
+#sugg small{color:var(--muted)}
+.chips{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#1f3a55;color:#dbe7f3;border:0;border-radius:20px;padding:6px 12px;font-size:13px}
+.chip:hover{background:#2b4d6f}
+main{margin-top:-14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+.hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.aqi{min-width:130px;text-align:center;border-radius:14px;padding:16px 10px;color:#fff}
+.aqi b{display:block;font-size:46px;line-height:1}
+.aqi span{font-size:14px;font-weight:600}
+.city{font-size:20px;font-weight:700}
+.sub{color:var(--muted);font-size:14px;margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:6px}
+.pol{background:#f4f7fb;border-radius:10px;padding:10px}
+.pol small{color:var(--muted);display:block}
+.pol b{font-size:18px}
+h2{font-size:17px;margin:0 0 10px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.tab{border:1px solid var(--border);background:#fff;border-radius:20px;padding:6px 12px}
+.tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.advice li{margin:6px 0}
+.bars{display:flex;align-items:flex-end;gap:2px;height:130px;margin-top:6px}
+.bar{flex:1;border-radius:3px 3px 0 0;min-height:3px;position:relative}
+.axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.best{background:#e9f7ef;border-left:4px solid #2fa866;padding:10px 12px;border-radius:8px;margin-top:12px;font-size:14px}
+.msg{text-align:center;color:var(--muted);padding:30px 10px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:10px 16px 30px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="top"><div><h1>🌿 AirWise</h1><p id="tag"></p></div>
+  <button id="lang">RU</button></div>
+  <div class="searchbox">
+    <input id="q" autocomplete="off">
+    <button id="loc" title="My location">📍</button>
+    <div id="sugg" hidden></div>
+  </div>
+  <div class="chips" id="chips"></div>
+</div></header>
+
+<main class="wrap">
+  <div id="out"><div class="card msg" id="start"></div></div>
+</main>
+<footer id="foot"></footer>
+
+<script>
+const T={
+en:{tag:"Real-time air quality for any city in the world, with health advice",ph:"Search any city (e.g. Almaty, Paris, Lagos)…",
+ start:"Search a city or tap 📍 to see the air quality and what to do about it.",loading:"Loading air data…",err:"Could not load data. Check your connection and try again.",
+ nores:"No city found.",aqi:"US AQI",updated:"Updated",pol:"Pollutants (µg/m³)",who:"Advice for you",fc:"48-hour forecast",
+ best:"Best time to ventilate / go outside (next 24h):",now:"now",
+ groups:{all:"Healthy adult",sens:"Asthma / heart / lungs",kids:"Children",old:"Elderly",sport:"Athletes"},
+ cats:["Good","Moderate","Unhealthy for sensitive groups","Unhealthy","Very unhealthy","Hazardous"],
+ adv:{
+  all:[["Air is clean. Enjoy outdoor activities and open the windows."],["Air is acceptable. Outdoor activities are fine; open windows for short periods."],["Limit long intense outdoor exercise. Ventilate briefly at the cleanest hour."],["Reduce time outdoors. Keep windows closed; consider an N95/FFP2 mask in traffic."],["Avoid outdoor activity. Wear an N95/FFP2 mask if you must go out. Use an air purifier."],["Stay indoors with windows closed. Use an air purifier and avoid any exertion."]],
+  sens:[["Safe for you. Keep your inhaler with you as usual."],["Watch for symptoms during long outdoor activity. Keep medication handy."],["Limit time outdoors and avoid exercise outside. Keep medication handy."],["Stay indoors as much as possible. Use a purifier; wear an N95 if you go out."],["Stay indoors. Follow your doctor's action plan. Seek help if symptoms worsen."],["Stay indoors, seal windows, use a purifier. Contact a doctor if you feel unwell."]],
+  kids:[["Great day for outdoor play."],["Normal play is fine. Watch children with asthma."],["Shorten outdoor play and avoid intense sport."],["Move PE and play indoors."],["Keep children indoors."],["Keep children indoors with a purifier running."]],
+  old:[["No restrictions."],["Light outdoor activity is fine."],["Take shorter, gentler walks."],["Stay indoors; go out only when needed with a mask."],["Stay indoors."],["Stay indoors and keep windows sealed."]],
+  sport:[["Perfect for training outdoors."],["Training is fine; ease off if you feel irritation."],["Move hard workouts indoors or to the cleanest hour."],["Train indoors."],["No outdoor training."],["No outdoor training. Rest."]]},
+ foot:"Data: Open-Meteo Air Quality API (CAMS model). Health ranges follow the US EPA AQI. Not medical advice."},
+ru:{tag:"Качество воздуха в реальном времени для любого города мира и советы по здоровью",ph:"Найти город (например, Алматы, Париж, Лагос)…",
+ start:"Найдите город или нажмите 📍, чтобы увидеть качество воздуха и что с этим делать.",loading:"Загружаю данные…",err:"Не удалось загрузить данные. Проверьте интернет.",
+ nores:"Город не найден.",aqi:"US AQI",updated:"Обновлено",pol:"Загрязнители (мкг/м³)",who:"Советы для вас",fc:"Прогноз на 48 часов",
+ best:"Лучшее время для проветривания / прогулки (след. 24 ч):",now:"сейчас",
+ groups:{all:"Здоровый взрослый",sens:"Астма / сердце / лёгкие",kids:"Дети",old:"Пожилые",sport:"Спортсмены"},
+ cats:["Хорошо","Умеренно","Вредно для чувствительных","Вредно","Очень вредно","Опасно"],
+ adv:{
+  all:[["Воздух чистый. Гуляйте и открывайте окна."],["Воздух приемлемый. Прогулки в порядке, окна можно открывать ненадолго."],["Ограничьте долгие интенсивные нагрузки на улице. Проветривайте недолго в самый чистый час."],["Сократите время на улице. Держите окна закрытыми; у дорог лучше маска N95/FFP2."],["Избегайте улицы. Если выходите, наденьте N95/FFP2. Включите очиститель воздуха."],["Оставайтесь дома с закрытыми окнами. Очиститель воздуха, никаких нагрузок."]],
+  sens:[["Безопасно. Ингалятор держите при себе как обычно."],["Следите за симптомами при долгих прогулках. Лекарства под рукой."],["Ограничьте время на улице, без спорта на открытом воздухе."],["Максимум времени дома. Очиститель; на улице маска N95."],["Оставайтесь дома. Следуйте плану врача. При ухудшении обратитесь за помощью."],["Дома, окна закрыты, очиститель. При недомогании к врачу."]],
+  kids:[["Отличный день для игр на улице."],["Обычные игры можно. Следите за детьми с астмой."],["Сократите игры на улице, без интенсивного спорта."],["Физкультуру и игры перенесите в помещение."],["Дети должны быть дома."],["Дети дома, с работающим очистителем."]],
+  old:[["Без ограничений."],["Лёгкие прогулки можно."],["Гуляйте меньше и спокойнее."],["Дома; выходить только по необходимости, в маске."],["Оставайтесь дома."],["Дома, окна плотно закрыты."]],
+  sport:[["Идеально для тренировок на улице."],["Тренировки ок; снизьте нагрузку при раздражении."],["Тяжёлые тренировки в зал или в самый чистый час."],["Тренируйтесь в помещении."],["Без уличных тренировок."],["Без уличных тренировок. Отдых."]]},
+ foot:"Данные: Open-Meteo Air Quality API (модель CAMS). Диапазоны по US EPA AQI. Не является медицинской рекомендацией."}
+};
+const COLORS=["#2fa866","#d9b800","#f08a24","#d9382f","#8e44ad","#7b1f2b"];
+const CITIES=[["Taraz",42.9,71.367,"Kazakhstan"],["Almaty",43.238,76.945,"Kazakhstan"],["Beijing",39.904,116.407,"China"],["Delhi",28.614,77.209,"India"],["London",51.507,-0.128,"United Kingdom"],["New York",40.713,-74.006,"USA"],["Tokyo",35.676,139.65,"Japan"],["Cairo",30.044,31.236,"Egypt"],["Sydney",-33.869,151.209,"Australia"],["São Paulo",-23.55,-46.633,"Brazil"],["Lagos",6.524,3.379,"Nigeria"]];
+let lang=localStorage.getItem("lang")||"en",group="all",cur=null,timer;
+const $=id=>document.getElementById(id);
+const t=()=>T[lang];
+function catIdx(a){return a<=50?0:a<=100?1:a<=150?2:a<=200?3:a<=300?4:5}
+function ui(){
+ $("tag").textContent=t().tag;$("q").placeholder=t().ph;$("foot").textContent=t().foot;$("lang").textContent=lang==="en"?"RU":"EN";
+ document.documentElement.lang=lang;
+ $("chips").innerHTML="";CITIES.forEach(c=>{const b=document.createElement("button");b.className="chip";b.textContent=c[0];b.onclick=()=>load({name:c[0],lat:c[1],lon:c[2],country:c[3]});$("chips").appendChild(b)});
+ if($("start"))$("start").textContent=t().start;
+ if(cur)render();
+}
+$("lang").onclick=()=>{lang=lang==="en"?"ru":"en";try{localStorage.setItem("lang",lang)}catch(e){}ui()};
+$("q").oninput=e=>{clearTimeout(timer);const v=e.target.value.trim();if(v.length<2){$("sugg").hidden=true;return}
+ timer=setTimeout(async()=>{
+  try{const r=await fetch("https://geocoding-api.open-meteo.com/v1/search?count=6&language="+lang+"&name="+encodeURIComponent(v));const j=await r.json();
+   const s=$("sugg");s.innerHTML="";
+   if(!j.results){s.innerHTML="<div>"+t().nores+"</div>";s.hidden=false;return}
+   j.results.forEach(c=>{const d=document.createElement("div");d.innerHTML=c.name+" <small>"+[c.admin1,c.country].filter(Boolean).join(", ")+"</small>";
+    d.onclick=()=>{s.hidden=true;$("q").value=c.name;load({name:c.name,lat:c.latitude,lon:c.longitude,country:c.country||""})};s.appendChild(d)});
+   s.hidden=false}catch(e){}
+ },300)};
+document.addEventListener("click",e=>{if(!e.target.closest(".searchbox"))$("sugg").hidden=true});
+$("loc").onclick=()=>{if(!navigator.geolocation)return;
+ navigator.geolocation.getCurrentPosition(p=>load({name:"📍",lat:p.coords.latitude,lon:p.coords.longitude,country:"",me:true}),()=>{})};
+async function load(c){
+ $("out").innerHTML='<div class="card msg">'+t().loading+'</div>';
+ let j;
+ try{
+  const u="https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+c.lat+"&longitude="+c.lon+"&current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide,sulfur_dioxide,carbon_monoxide&hourly=us_aqi&forecast_days=3&timezone=auto";
+  const r=await fetch(u);
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  j=await r.json();
+  if(!j||!j.current)throw new Error((j&&j.reason)||"no data");
+ }catch(e){$("out").innerHTML='<div class="card msg">'+t().err+'<br><small>['+((e&&e.message)||e)+']</small></div>';return}
+ if(c.me){c.name=lang==="ru"?"Моё местоположение":"My location"}
+ cur={c,j};
+ try{render()}catch(e){$("out").innerHTML='<div class="card msg">Display error<br><small>['+((e&&e.message)||e)+']</small></div>'}
+}
+function render(){
+ const {c,j}=cur,cu=j.current,L=t();
+ const a=Math.round(Number(cu.us_aqi)||0),i=catIdx(a);
+ const times=(j.hourly&&j.hourly.time)||[],vals=(j.hourly&&j.hourly.us_aqi)||[];
+ const nowT=String(cu.time).slice(0,13);
+ let s=times.findIndex(x=>String(x).slice(0,13)>=nowT);if(s<0)s=0;
+ const idx=[];for(let k=s;k<Math.min(s+48,vals.length);k++){if(vals[k]!=null)idx.push(k)}
+ const next24=idx.slice(0,24);
+ let best="",chart="";
+ if(next24.length){
+  let bi=next24[0];next24.forEach(k=>{if(vals[k]<vals[bi])bi=k});
+  const mx=Math.max(50,...idx.map(k=>vals[k]));
+  const bars=idx.map(k=>{const v=Math.round(vals[k]);return '<div class="bar" title="'+String(times[k]).slice(5,16).replace("T"," ")+" · AQI "+v+'" style="height:'+Math.max(3,v/mx*100)+'%;background:'+COLORS[catIdx(v)]+'"></div>'}).join("");
+  const legend=L.cats.map((n,k)=>'<span><i style="background:'+COLORS[k]+'"></i>'+n+'</span>').join("");
+  best='<div class="best">'+L.best+' <b>'+String(times[bi]).slice(11,16)+'</b> ('+(bi===s?L.now:String(times[bi]).slice(5,10))+', AQI '+Math.round(vals[bi])+')</div>';
+  chart='<div class="card"><h2>'+L.fc+'</h2><div class="bars">'+bars+'</div><div class="axis"><span>'+L.now+'</span><span>+24h</span><span>+48h</span></div><div class="legend">'+legend+'</div></div>';
+ }
+ const pols=[["PM2.5",cu.pm2_5],["PM10",cu.pm10],["O₃",cu.ozone],["NO₂",cu.nitrogen_dioxide],["SO₂",cu.sulfur_dioxide],["CO",cu.carbon_monoxide]]
+  .map(p=>'<div class="pol"><small>'+p[0]+'</small><b>'+(p[1]==null?"–":Math.round(p[1]*10)/10)+'</b></div>').join("");
+ const tabs=Object.keys(L.groups).map(g=>'<button class="tab'+(g===group?" on":"")+'" data-g="'+g+'">'+L.groups[g]+'</button>').join("");
+ const adv=L.adv[group][i][0];
+ $("out").innerHTML=
+ '<div class="card hero"><div class="aqi" style="background:'+COLORS[i]+'"><b>'+a+'</b><span>'+L.cats[i]+'</span></div>'+
+ '<div><div class="city">'+c.name+'</div><div class="sub">'+(c.country||"")+' · '+L.aqi+' · '+L.updated+' '+String(cu.time).replace("T"," ")+'</div></div></div>'+
+ '<div class="card"><h2>'+L.pol+'</h2><div class="grid">'+pols+'</div></div>'+
+ '<div class="card"><h2>'+L.who+'</h2><div class="tabs">'+tabs+'</div><div class="advice">'+adv+'</div>'+best+'</div>'+chart;
+ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{group=b.dataset.g;render()});
+}
+ui();
+</script>
+</body>
+</html>
