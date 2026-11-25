@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AirWise – Air Quality Advisor</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--text:#1b2733;--muted:#6b7a89;--accent:#2a7de1;--border:#e3e9f0}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{background:#12263a;color:#fff;padding:20px 16px 28px}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header .wrap{padding:0}
+h1{margin:0 0 4px;font-size:26px}
+header p{margin:0;color:#b9c8d8;font-size:14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#lang{background:transparent;color:#fff;border:1px solid #4a6580;border-radius:8px;padding:6px 8px;cursor:pointer;font-size:15px}#lang option{color:#000}
+.searchbox{position:relative;margin-top:16px;display:flex;gap:8px}
+#q{flex:1;padding:12px 14px;border-radius:10px;border:0;font-size:16px}
+button{cursor:pointer;font-size:15px}
+#loc{padding:0 14px;border-radius:10px;border:0;background:var(--accent);color:#fff}
+#sugg{position:absolute;top:50px;left:0;right:60px;background:#fff;color:var(--text);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:5;overflow:hidden}
+#sugg div{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)}
+#sugg div:hover{background:#eef4fc}
+#sugg small{color:var(--muted)}
+.chips{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#1f3a55;color:#dbe7f3;border:0;border-radius:20px;padding:6px 12px;font-size:13px}
+.chip:hover{background:#2b4d6f}
+main{margin-top:-14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+.hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.aqi{min-width:130px;text-align:center;border-radius:14px;padding:16px 10px;color:#fff}
+.aqi b{display:block;font-size:46px;line-height:1}
+.aqi span{font-size:14px;font-weight:600}
+.city{font-size:20px;font-weight:700}
+.sub{color:var(--muted);font-size:14px;margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:6px}
+.pol{background:#f4f7fb;border-radius:10px;padding:10px}
+.pol small{color:var(--muted);display:block}
+.pol b{font-size:18px}
+h2{font-size:17px;margin:0 0 10px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.tab{border:1px solid var(--border);background:#fff;border-radius:20px;padding:6px 12px}
+.tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.advice li{margin:6px 0}
+.bars{display:flex;align-items:flex-end;gap:2px;height:130px;margin-top:6px}
+.bar{flex:1;border-radius:3px 3px 0 0;min-height:3px;position:relative}
+.axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.best{background:#e9f7ef;border-left:4px solid #2fa866;padding:10px 12px;border-radius:8px;margin-top:12px;font-size:14px}
+.msg{text-align:center;color:var(--muted);padding:30px 10px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:10px 16px 30px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="top"><div><h1>🌿 AirWise</h1><p id="tag"></p></div>
+  <select id="lang" aria-label="Language"><option value="en">English</option><option value="zh">中文</option><option value="es">Español</option><option value="fr">Français</option></select></div>
+  <div class="searchbox">
+    <input id="q" autocomplete="off">
+    <button id="loc" title="My location">📍</button>
+    <div id="sugg" hidden></div>
+  </div>
+  <div class="chips" id="chips"></div>
+</div></header>
+
+<main class="wrap">
+  <div id="out"><div class="card msg" id="start"></div></div>
+</main>
+<footer id="foot"></footer>
+
+<script>
+const T={
+en:{tag:"Real-time air quality for any city in the world, with health advice",ph:"Search any city (e.g. Almaty, Paris, Lagos)…",
+ start:"Search a city or tap 📍 to see the air quality and what to do about it.",loading:"Loading air data…",err:"Could not load data. Check your connection and try again.",
+ nores:"No city found.",aqi:"US AQI",updated:"Updated",pol:"Pollutants (µg/m³)",who:"Advice for you",fc:"48-hour forecast",
+ best:"Best time to ventilate / go outside (next 24h):",now:"now",myloc:"My location",
+ groups:{all:"Healthy adult",sens:"Asthma / heart / lungs",kids:"Children",old:"Elderly",sport:"Athletes"},
+ cats:["Good","Moderate","Unhealthy for sensitive groups","Unhealthy","Very unhealthy","Hazardous"],
+ adv:{
+  all:[["Air is clean. Enjoy outdoor activities and open the windows."],["Air is acceptable. Outdoor activities are fine; open windows for short periods."],["Limit long intense outdoor exercise. Ventilate briefly at the cleanest hour."],["Reduce time outdoors. Keep windows closed; consider an N95/FFP2 mask in traffic."],["Avoid outdoor activity. Wear an N95/FFP2 mask if you must go out. Use an air purifier."],["Stay indoors with windows closed. Use an air purifier and avoid any exertion."]],
+  sens:[["Safe for you. Keep your inhaler with you as usual."],["Watch for symptoms during long outdoor activity. Keep medication handy."],["Limit time outdoors and avoid exercise outside. Keep medication handy."],["Stay indoors as much as possible. Use a purifier; wear an N95 if you go out."],["Stay indoors. Follow your doctor's action plan. Seek help if symptoms worsen."],["Stay indoors, seal windows, use a purifier. Contact a doctor if you feel unwell."]],
+  kids:[["Great day for outdoor play."],["Normal play is fine. Watch children with asthma."],["Shorten outdoor play and avoid intense sport."],["Move PE and play indoors."],["Keep children indoors."],["Keep children indoors with a purifier running."]],
+  old:[["No restrictions."],["Light outdoor activity is fine."],["Take shorter, gentler walks."],["Stay indoors; go out only when needed with a mask."],["Stay indoors."],["Stay indoors and keep windows sealed."]],
+  sport:[["Perfect for training outdoors."],["Training is fine; ease off if you feel irritation."],["Move hard workouts indoors or to the cleanest hour."],["Train indoors."],["No outdoor training."],["No outdoor training. Rest."]]},
+ foot:"Data: Open-Meteo Air Quality API (CAMS model). Health ranges follow the US EPA AQI. Not medical advice."},
+zh:{"tag": "全球任意城市的实时空气质量与健康建议", "ph": "搜索任意城市（如 阿拉木图、巴黎、拉各斯）…", "start": "搜索城市或点击 📍，查看空气质量以及该怎么做。", "loading": "正在加载空气数据…", "err": "无法加载数据，请检查网络后重试。", "nores": "未找到城市。", "aqi": "US AQI", "updated": "更新时间", "pol": "污染物 (µg/m³)", "who": "给你的建议", "fc": "48小时预报", "best": "未来24小时内最适合通风/外出的时间：", "now": "现在", "myloc": "我的位置", "groups": {"all": "健康成年人", "sens": "哮喘/心脏/肺部疾病", "kids": "儿童", "old": "老年人", "sport": "运动员"}, "cats": ["良好", "中等", "对敏感人群不健康", "不健康", "非常不健康", "危险"], "adv": {"all": [["空气清洁，可以放心户外活动并开窗通风。"], ["空气质量可接受，可正常户外活动，开窗通风时间不宜过长。"], ["减少长时间高强度户外运动，选择空气最好的时段短时间通风。"], ["减少户外时间，保持窗户关闭；在交通繁忙处建议佩戴N95/FFP2口罩。"], ["避免户外活动；必须外出时请佩戴N95/FFP2口罩，并使用空气净化器。"], ["请留在室内并关好窗户，使用空气净化器，避免任何剧烈活动。"]], "sens": [["对你是安全的，请像往常一样随身携带急救吸入器。"], ["长时间户外活动时注意症状，药物放在手边。"], ["减少户外时间，避免在室外运动，药物放在手边。"], ["尽量留在室内，使用空气净化器；外出请佩戴N95口罩。"], ["请留在室内，遵循医生的行动方案；症状加重时及时就医。"], ["留在室内，封好窗户，使用空气净化器；感觉不适请联系医生。"]], "kids": [["适合孩子户外玩耍的好日子。"], ["可以正常玩耍，请留意患有哮喘的孩子。"], ["缩短户外玩耍时间，避免高强度运动。"], ["体育课和游戏请改到室内。"], ["请让孩子留在室内。"], ["请让孩子留在室内，并开启空气净化器。"]], "old": [["没有限制。"], ["可以进行轻度户外活动。"], ["散步时间缩短、节奏放慢。"], ["留在室内；必须外出时请戴口罩。"], ["请留在室内。"], ["请留在室内并关紧窗户。"]], "sport": [["非常适合户外训练。"], ["可以训练；如有不适请减轻强度。"], ["高强度训练请改到室内或空气最好的时段。"], ["请在室内训练。"], ["不要户外训练。"], ["不要户外训练，好好休息。"]]}, "foot": "数据来源：Open-Meteo 空气质量 API（CAMS 模型）。健康等级参照美国 EPA AQI。不构成医疗建议。"},
+es:{"tag": "Calidad del aire en tiempo real para cualquier ciudad del mundo, con consejos de salud", "ph": "Busca cualquier ciudad (p. ej., Almaty, París, Lagos)…", "start": "Busca una ciudad o toca 📍 para ver la calidad del aire y qué hacer al respecto.", "loading": "Cargando datos del aire…", "err": "No se pudieron cargar los datos. Revisa tu conexión e inténtalo de nuevo.", "nores": "No se encontró la ciudad.", "aqi": "US AQI", "updated": "Actualizado", "pol": "Contaminantes (µg/m³)", "who": "Consejos para ti", "fc": "Pronóstico de 48 horas", "best": "Mejor momento para ventilar / salir (próximas 24 h):", "now": "ahora", "myloc": "Mi ubicación", "groups": {"all": "Adulto sano", "sens": "Asma / corazón / pulmones", "kids": "Niños", "old": "Mayores", "sport": "Deportistas"}, "cats": ["Buena", "Moderada", "Dañina para grupos sensibles", "Dañina", "Muy dañina", "Peligrosa"], "adv": {"all": [["El aire está limpio. Disfruta de las actividades al aire libre y abre las ventanas."], ["El aire es aceptable. Puedes hacer actividades al aire libre; ventila solo por periodos cortos."], ["Limita el ejercicio intenso y prolongado al aire libre. Ventila brevemente en la hora más limpia."], ["Reduce el tiempo al aire libre. Mantén las ventanas cerradas; usa mascarilla N95/FFP2 en zonas de tráfico."], ["Evita la actividad al aire libre. Si debes salir, usa mascarilla N95/FFP2. Usa un purificador de aire."], ["Quédate en casa con las ventanas cerradas. Usa un purificador de aire y evita cualquier esfuerzo."]], "sens": [["Es seguro para ti. Lleva tu inhalador contigo como siempre."], ["Presta atención a los síntomas en actividades largas al aire libre. Ten la medicación a mano."], ["Limita el tiempo al aire libre y evita hacer ejercicio fuera. Ten la medicación a mano."], ["Quédate en casa tanto como puedas. Usa un purificador; si sales, usa mascarilla N95."], ["Quédate en casa. Sigue el plan de tu médico. Busca ayuda si los síntomas empeoran."], ["Quédate en casa, sella las ventanas y usa un purificador. Consulta a un médico si te sientes mal."]], "kids": [["Un gran día para jugar al aire libre."], ["Se puede jugar con normalidad. Vigila a los niños con asma."], ["Acorta el juego al aire libre y evita el deporte intenso."], ["Pasa la educación física y los juegos a espacios interiores."], ["Mantén a los niños dentro de casa."], ["Mantén a los niños dentro de casa con un purificador encendido."]], "old": [["Sin restricciones."], ["Se permite actividad ligera al aire libre."], ["Haz paseos más cortos y tranquilos."], ["Quédate en casa; sal solo si es necesario y con mascarilla."], ["Quédate en casa."], ["Quédate en casa y mantén las ventanas selladas."]], "sport": [["Perfecto para entrenar al aire libre."], ["Puedes entrenar; baja el ritmo si notas irritación."], ["Pasa los entrenamientos duros a interior o a la hora más limpia."], ["Entrena en interior."], ["No entrenes al aire libre."], ["No entrenes al aire libre. Descansa."]]}, "foot": "Datos: API de calidad del aire de Open-Meteo (modelo CAMS). Los rangos de salud siguen el AQI de la EPA de EE. UU. No es consejo médico."},
+fr:{"tag": "Qualité de l'air en temps réel pour toutes les villes du monde, avec conseils de santé", "ph": "Recherchez une ville (ex. Almaty, Paris, Lagos)…", "start": "Recherchez une ville ou touchez 📍 pour voir la qualité de l'air et quoi faire.", "loading": "Chargement des données…", "err": "Impossible de charger les données. Vérifiez votre connexion et réessayez.", "nores": "Aucune ville trouvée.", "aqi": "US AQI", "updated": "Mis à jour", "pol": "Polluants (µg/m³)", "who": "Conseils pour vous", "fc": "Prévisions sur 48 heures", "best": "Meilleur moment pour aérer / sortir (prochaines 24 h) :", "now": "maintenant", "myloc": "Ma position", "groups": {"all": "Adulte en bonne santé", "sens": "Asthme / cœur / poumons", "kids": "Enfants", "old": "Personnes âgées", "sport": "Sportifs"}, "cats": ["Bon", "Modéré", "Mauvais pour les personnes sensibles", "Mauvais", "Très mauvais", "Dangereux"], "adv": {"all": [["L'air est pur. Profitez des activités en plein air et ouvrez les fenêtres."], ["L'air est acceptable. Les activités en plein air sont possibles ; aérez seulement brièvement."], ["Limitez les efforts intenses et prolongés dehors. Aérez brièvement à l'heure la plus propre."], ["Réduisez le temps passé dehors. Gardez les fenêtres fermées ; envisagez un masque N95/FFP2 près du trafic."], ["Évitez les activités dehors. Portez un masque N95/FFP2 si vous devez sortir. Utilisez un purificateur d'air."], ["Restez à l'intérieur, fenêtres fermées. Utilisez un purificateur d'air et évitez tout effort."]], "sens": [["Pas de risque pour vous. Gardez votre inhalateur sur vous comme d'habitude."], ["Surveillez vos symptômes lors des activités prolongées dehors. Gardez vos médicaments à portée de main."], ["Limitez le temps dehors et évitez le sport en extérieur. Gardez vos médicaments à portée de main."], ["Restez à l'intérieur autant que possible. Utilisez un purificateur ; portez un masque N95 si vous sortez."], ["Restez à l'intérieur. Suivez le plan de votre médecin. Consultez si les symptômes s'aggravent."], ["Restez à l'intérieur, calfeutrez les fenêtres, utilisez un purificateur. Contactez un médecin en cas de malaise."]], "kids": [["Belle journée pour jouer dehors."], ["Les jeux habituels sont possibles. Surveillez les enfants asthmatiques."], ["Raccourcissez les jeux dehors et évitez le sport intense."], ["Déplacez le sport et les jeux à l'intérieur."], ["Gardez les enfants à l'intérieur."], ["Gardez les enfants à l'intérieur avec un purificateur en marche."]], "old": [["Aucune restriction."], ["Une activité légère en extérieur est possible."], ["Faites des promenades plus courtes et plus calmes."], ["Restez à l'intérieur ; ne sortez que si nécessaire, avec un masque."], ["Restez à l'intérieur."], ["Restez à l'intérieur, fenêtres bien fermées."]], "sport": [["Parfait pour s'entraîner dehors."], ["L'entraînement est possible ; levez le pied en cas d'irritation."], ["Déplacez les séances intenses à l'intérieur ou à l'heure la plus propre."], ["Entraînez-vous à l'intérieur."], ["Pas d'entraînement en extérieur."], ["Pas d'entraînement en extérieur. Repos."]]}, "foot": "Données : API Open-Meteo Air Quality (modèle CAMS). Les niveaux suivent l'AQI de l'EPA américaine. Ne constitue pas un avis médical."}
+};
+const COLORS=["#2fa866","#d9b800","#f08a24","#d9382f","#8e44ad","#7b1f2b"];
+const CITIES=[["Taraz",42.9,71.367,"Kazakhstan"],["Almaty",43.238,76.945,"Kazakhstan"],["Beijing",39.904,116.407,"China"],["Delhi",28.614,77.209,"India"],["London",51.507,-0.128,"United Kingdom"],["New York",40.713,-74.006,"USA"],["Tokyo",35.676,139.65,"Japan"],["Cairo",30.044,31.236,"Egypt"],["Sydney",-33.869,151.209,"Australia"],["São Paulo",-23.55,-46.633,"Brazil"],["Lagos",6.524,3.379,"Nigeria"]];
+let lang="en",group="all",cur=null,timer;try{const sl=localStorage.getItem("lang");if(sl&&T[sl])lang=sl}catch(e){}
+const $=id=>document.getElementById(id);
+const t=()=>T[lang];
+function catIdx(a){return a<=50?0:a<=100?1:a<=150?2:a<=200?3:a<=300?4:5}
+function ui(){
+ $("tag").textContent=t().tag;$("q").placeholder=t().ph;$("foot").textContent=t().foot;$("lang").value=lang;
+ document.documentElement.lang=lang;
+ $("chips").innerHTML="";CITIES.forEach(c=>{const b=document.createElement("button");b.className="chip";b.textContent=c[0];b.onclick=()=>load({name:c[0],lat:c[1],lon:c[2],country:c[3]});$("chips").appendChild(b)});
+ if($("start"))$("start").textContent=t().start;
+ if(cur)render();
+}
+$("lang").onchange=e=>{lang=e.target.value;try{localStorage.setItem("lang",lang)}catch(x){}ui()};
+$("q").oninput=e=>{clearTimeout(timer);const v=e.target.value.trim();if(v.length<2){$("sugg").hidden=true;return}
+ timer=setTimeout(async()=>{
+  try{const r=await fetch("https://geocoding-api.open-meteo.com/v1/search?count=6&language="+lang+"&name="+encodeURIComponent(v));const j=await r.json();
+   const s=$("sugg");s.innerHTML="";
+   if(!j.results){s.innerHTML="<div>"+t().nores+"</div>";s.hidden=false;return}
+   j.results.forEach(c=>{const d=document.createElement("div");d.innerHTML=c.name+" <small>"+[c.admin1,c.country].filter(Boolean).join(", ")+"</small>";
+    d.onclick=()=>{s.hidden=true;$("q").value=c.name;load({name:c.name,lat:c.latitude,lon:c.longitude,country:c.country||""})};s.appendChild(d)});
+   s.hidden=false}catch(e){}
+ },300)};
+document.addEventListener("click",e=>{if(!e.target.closest(".searchbox"))$("sugg").hidden=true});
+$("loc").onclick=()=>{if(!navigator.geolocation)return;
+ navigator.geolocation.getCurrentPosition(p=>load({name:"📍",lat:p.coords.latitude,lon:p.coords.longitude,country:"",me:true}),()=>{})};
+async function load(c){
+ $("out").innerHTML='<div class="card msg">'+t().loading+'</div>';
+ let j;
+ try{
+  const u="https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+c.lat+"&longitude="+c.lon+"&current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide,sulphur_dioxide,carbon_monoxide&hourly=us_aqi&forecast_days=3&timezone=auto";
+  const r=await fetch(u);
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  j=await r.json();
+  if(!j||!j.current)throw new Error((j&&j.reason)||"no data");
+ }catch(e){$("out").innerHTML='<div class="card msg">'+t().err+'<br><small>['+((e&&e.message)||e)+']</small></div>';return}
+ if(c.me){c.name=t().myloc}
+ cur={c,j};
+ try{render()}catch(e){$("out").innerHTML='<div class="card msg">Display error<br><small>['+((e&&e.message)||e)+']</small></div>'}
+}
+function render(){
+ const {c,j}=cur,cu=j.current,L=t();
+ const a=Math.round(Number(cu.us_aqi)||0),i=catIdx(a);
+ const times=(j.hourly&&j.hourly.time)||[],vals=(j.hourly&&j.hourly.us_aqi)||[];
+ const nowT=String(cu.time).slice(0,13);
+ let s=times.findIndex(x=>String(x).slice(0,13)>=nowT);if(s<0)s=0;
+ const idx=[];for(let k=s;k<Math.min(s+48,vals.length);k++){if(vals[k]!=null)idx.push(k)}
+ const next24=idx.slice(0,24);
+ let best="",chart="";
+ if(next24.length){
+  let bi=next24[0];next24.forEach(k=>{if(vals[k]<vals[bi])bi=k});
+  const mx=Math.max(50,...idx.map(k=>vals[k]));
+  const bars=idx.map(k=>{const v=Math.round(vals[k]);return '<div class="bar" title="'+String(times[k]).slice(5,16).replace("T"," ")+" · AQI "+v+'" style="height:'+Math.max(3,v/mx*100)+'%;background:'+COLORS[catIdx(v)]+'"></div>'}).join("");
+  const legend=L.cats.map((n,k)=>'<span><i style="background:'+COLORS[k]+'"></i>'+n+'</span>').join("");
+  best='<div class="best">'+L.best+' <b>'+String(times[bi]).slice(11,16)+'</b> ('+(bi===s?L.now:String(times[bi]).slice(5,10))+', AQI '+Math.round(vals[bi])+')</div>';
+  chart='<div class="card"><h2>'+L.fc+'</h2><div class="bars">'+bars+'</div><div class="axis"><span>'+L.now+'</span><span>+24h</span><span>+48h</span></div><div class="legend">'+legend+'</div></div>';
+ }
+ const pols=[["PM2.5",cu.pm2_5],["PM10",cu.pm10],["O₃",cu.ozone],["NO₂",cu.nitrogen_dioxide],["SO₂",cu.sulphur_dioxide],["CO",cu.carbon_monoxide]]
+  .map(p=>'<div class="pol"><small>'+p[0]+'</small><b>'+(p[1]==null?"–":Math.round(p[1]*10)/10)+'</b></div>').join("");
+ const tabs=Object.keys(L.groups).map(g=>'<button class="tab'+(g===group?" on":"")+'" data-g="'+g+'">'+L.groups[g]+'</button>').join("");
+ const adv=L.adv[group][i][0];
+ $("out").innerHTML=
+ '<div class="card hero"><div class="aqi" style="background:'+COLORS[i]+'"><b>'+a+'</b><span>'+L.cats[i]+'</span></div>'+
+ '<div><div class="city">'+c.name+'</div><div class="sub">'+(c.country||"")+' · '+L.aqi+' · '+L.updated+' '+String(cu.time).replace("T"," ")+'</div></div></div>'+
+ '<div class="card"><h2>'+L.pol+'</h2><div class="grid">'+pols+'</div></div>'+
+ '<div class="card"><h2>'+L.who+'</h2><div class="tabs">'+tabs+'</div><div class="advice">'+adv+'</div>'+best+'</div>'+chart;
+ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{group=b.dataset.g;render()});
+}
+ui();
+</script>
+</body>
+</html>
